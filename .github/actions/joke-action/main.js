@@ -9,14 +9,14 @@ async function run() {
   const { context = {} } = github;
   const { pull_request = {} } = context.payload;
   let bodytext = "";
+  context
 
   try {
 
     // Function to get all files recursively from the repository
     async function getRepoFiles(path = "") {
       const { data: contents } = await octokit.rest.repos.getContent({
-        ...repo,
-        path,
+        ...context.repo,
       });
 
       let files = [];
