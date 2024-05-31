@@ -11,7 +11,6 @@ async function run() {
   let bodytext = "";
 
   try {
-    debug("Our action is running");
 
     // Function to get all files recursively from the repository
     async function getRepoFiles(path = "") {
