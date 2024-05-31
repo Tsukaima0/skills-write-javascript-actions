@@ -11,18 +11,35 @@ async function run() {
   let bodytext = "";
 
   try {
-    debug( 'Our action is running' );
-    // List files in the pull request
-    const { data: files } = await octokit.rest.pulls.listFiles({
-      ...context.repo,
-      pull_number: pull_request.number,
-    });
+    debug("Our action is running");
 
+    // Function to get all files recursively from the repository
+    async function getRepoFiles(path = "") {
+      const { data: contents } = await octokit.rest.repos.getContent({
+        ...repo,
+        path,
+      });
+
+      let files = [];
+      for (const item of contents) {
+        if (item.type === "dir") {
+          files = files.concat(await getRepoFiles(item.path));
+        } else {
+          files.push(item);
+        }
+      }
+      return files;
+    }
+
+    const files = await getRepoFiles();
     // Loop through each changed Flow and get its contents
     let flows = [];
     for (const file of files) {
       // Filter files based on the desired patterns
-      if (file.filename.endsWith('flow-meta.xml') || file.filename.endsWith('flow')) {
+      if (
+        file.filename.endsWith("flow-meta.xml") ||
+        file.filename.endsWith("flow")
+      ) {
         const { data: fileContent } = await octokit.rest.repos.getContent({
           ...context.repo,
           path: file.filename,
@@ -30,13 +47,15 @@ async function run() {
         });
 
         // The content is base64 encoded, so decode it
-        const content = Buffer.from(fileContent.content, "base64").toString("utf8");
+        const content = Buffer.from(fileContent.content, "base64").toString(
+          "utf8"
+        );
 
-        flows.push(new lfs_core.Flow("test", content));
+        flows.push(new lfs_core.Flow(file.filename, content));
       }
     }
 
-    if(flows.length > 0){
+    if (flows.length > 0) {
       // Scan the flows
       const results = lfs_core.scan(flows);
       if (results) {
@@ -47,7 +66,6 @@ async function run() {
         bodytext = "No issues found in the flows.";
       }
     }
-    
   } catch (e) {
     console.log("" + e);
     bodytext = `Error: ${e.message}`;
